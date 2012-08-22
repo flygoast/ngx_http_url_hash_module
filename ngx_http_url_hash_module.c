@@ -102,6 +102,11 @@ static char *ngx_http_url_hash(ngx_conf_t *cf, ngx_command_t *cmd,
     return NGX_CONF_OK;
 }
 
+static ngx_uint_t ngx_http_request_hash_index(ngx_http_request_t *r, 
+        ngx_http_url_hash_ctx_t *ctx) {
+    return ngx_crc32_short(r->uri.data, r->uri.len) % ctx->backends->nelts;
+}
+
 static ngx_int_t ngx_http_url_hash_variable(ngx_http_request_t *r, 
         ngx_http_variable_value_t *v, uintptr_t data) {
     ngx_http_url_hash_ctx_t *urlhash = (ngx_http_url_hash_ctx_t *)data;
@@ -115,6 +120,7 @@ static ngx_int_t ngx_http_url_hash_variable(ngx_http_request_t *r,
     u_char      *failed_location = "http://127.0.0.1/";
 
     nelts = urlhash->backends->nelts;
+    index = ngx_http_request_hash_index(r, urlhash);
     host_len = ((ngx_str_t *)urlhash->backends->elts + index)->len;
     len = http_len + host_len + r->uri.len;
     location = ngx_pcalloc(r->pool, len + 1);

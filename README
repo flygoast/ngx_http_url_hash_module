@@ -1,0 +1,33 @@
+ngx_http_url_hash_module
+-----------------------------------------------------
+
+The ngx_http_url_hash_module module creates variable whose
+values is the http 302 location depend on the hash of request
+uri. It can be used with rewrite to implement simple load
+balance.
+
+Example Configuration
+=====================
+
+    url_hash $urlhash {
+        backend     192.168.100.1;
+        backend     192.168.100.2;
+        backend     192.168.100.3:8080;
+    }
+    
+    location / {
+        rewrite ^/(.*) $urlhash redirect;
+    }
+
+Diretives
+=========
+
+syntax: url_hash $variable { ... }
+default: --
+context: http, server, location
+
+The only supported parameter is:
+
+backend
+    host and port in HTTP 302 redirect location
+

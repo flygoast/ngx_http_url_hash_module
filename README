@@ -22,9 +22,9 @@ Example Configuration
 Diretives
 =========
 
-syntax: url_hash $variable { ... }
-default: --
-context: http, server, location
+* syntax: url_hash $variable { ... }
+* default: --
+* context: http, server, location
 
 The only supported parameter is:
 

@@ -1,6 +1,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
+#include <ctype.h>
 
 typedef struct {
     ngx_pool_t      *pool;
@@ -104,7 +105,48 @@ static char *ngx_http_url_hash(ngx_conf_t *cf, ngx_command_t *cmd,
 
 static ngx_uint_t ngx_http_request_hash_index(ngx_http_request_t *r, 
         ngx_http_url_hash_ctx_t *ctx) {
-    return ngx_crc32_short(r->uri.data, r->uri.len) % ctx->backends->nelts;
+    int range_start = 0;
+    u_char *url_range;
+    int temp_len = 0;
+
+    if (r->headers_in.range == NULL 
+            || r->headers_in.range->value.len < 7
+            || ngx_strncasecmp(r->headers_in.range->value.data, 
+                (u_char *)"bytes=", 6)) {
+        range_start = 0;
+        temp_len = r->uri.len + 2;
+    } else {
+        /* process Ranges */
+        int i;
+        char c;
+        for (i = 6; i <= r->headers_in.range->value.len; ++i) {
+            c = r->headers_in.range->value.data[i];
+            if (c == '-') {
+                break;
+            }
+
+            if (isspace(c)) {
+                continue;
+            }
+
+            if (isdigit(c)) {
+                range_start = range_start * 10 + c - 0x30;
+            }
+        }
+        range_start /= 10;
+        temp_len = r->uri.len + r->headers_in.range->value.len + 1;
+    }
+
+    url_range = (u_char *)ngx_pcalloc(r->pool, temp_len);
+    if (url_range == NULL) {
+        return 0;
+    }
+    ngx_memcpy(url_range, r->uri.data, r->uri.len);
+    ngx_snprintf(url_range + r->uri.len, temp_len - r->uri.len, 
+            "%d", range_start);
+
+    printf("%s\n", url_range);
+    return ngx_crc32_short(url_range, ngx_strlen(url_range)) % ctx->backends->nelts;
 }
 
 static ngx_int_t ngx_http_url_hash_variable(ngx_http_request_t *r, 

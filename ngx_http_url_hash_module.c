@@ -15,7 +15,7 @@ typedef struct {
     ngx_uint_t      slice_size;
 } ngx_http_url_hash_ctx_t;
 
-static ngx_int_t ngx_http_url_hash_range_parse(ngx_http_request_t *r, 
+static ngx_uint_t ngx_http_url_hash_range_parse(ngx_http_request_t *r, 
         ngx_int_t *len) {
     u_char            *p;
     ngx_int_t         start = 0;
@@ -151,7 +151,7 @@ static char *ngx_http_url_hash(ngx_conf_t *cf, ngx_command_t *cmd,
 static ngx_uint_t ngx_http_request_hash_index(ngx_http_request_t *r, 
         ngx_http_url_hash_ctx_t *ctx) {
     ngx_uint_t index = 0;
-    ngx_int_t range_id = 0;
+    ngx_uint_t range_id = 0;
     ngx_int_t len = 0;
     u_char *url_range;
     int temp_len = 0;

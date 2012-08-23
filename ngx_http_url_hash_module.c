@@ -12,9 +12,6 @@ typedef struct {
     ngx_array_t     *backends;
 } ngx_http_url_hash_ctx_t;
 
-static void *ngx_http_url_hash_create_loc_conf(ngx_conf_t *cf);
-static char *ngx_http_url_hash_merge_loc_conf(ngx_conf_t *cf,
-        void *parent, void *child);
 static char *ngx_http_url_hash_block(ngx_conf_t *cf, ngx_command_t *cmd,
         void *conf);
 
@@ -145,7 +142,6 @@ static ngx_uint_t ngx_http_request_hash_index(ngx_http_request_t *r,
     ngx_snprintf(url_range + r->uri.len, temp_len - r->uri.len, 
             "%d", range_start);
 
-    printf("%s\n", url_range);
     return ngx_crc32_short(url_range, ngx_strlen(url_range)) % ctx->backends->nelts;
 }
 

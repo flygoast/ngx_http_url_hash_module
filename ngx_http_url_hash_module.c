@@ -1,16 +1,58 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
-#include <ctype.h>
+
+#define DEFAULT_SLICE_SIZE      10240   /* 10K */
 
 typedef struct {
     ngx_pool_t      *pool;
     ngx_array_t     *backends;
+    ngx_uint_t      slice_size;
 } ngx_http_url_hash_conf_ctx_t;
 
 typedef struct {
     ngx_array_t     *backends;
+    ngx_uint_t      slice_size;
 } ngx_http_url_hash_ctx_t;
+
+static ngx_int_t ngx_http_url_hash_range_parse(ngx_http_request_t *r, 
+        ngx_int_t *len) {
+    u_char            *p;
+    ngx_int_t         start = 0;
+
+    p = r->headers_in.range->value.data + 6;
+    if (len) {
+        *len = 0;
+    }
+
+    for ( ;; ) {
+        while (*p == ' ') { p++; }
+
+        if (*p != '-') {
+            if (*p < '0' || *p > '9') {
+                return -1;
+            }
+
+            while (*p >= '0' && *p <= '9') {
+                start = start * 10 + *p++ - '0';
+                if (len) {
+                    ++*len;
+                }
+            }
+
+            while (*p == ' ') { p++; }
+
+            if (*p++ != '-') {
+                return -1;
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+    return start;
+}
 
 static char *ngx_http_url_hash_block(ngx_conf_t *cf, ngx_command_t *cmd,
         void *conf);
@@ -92,6 +134,12 @@ static char *ngx_http_url_hash(ngx_conf_t *cf, ngx_command_t *cmd,
             return NGX_CONF_ERROR;
         }
         c->len = value[1].len;
+    } else if (ngx_strncmp(value[0].data, "slice_size", 10) == 0) {
+        ctx->slice_size = ngx_parse_size(&value[1]);
+        if (ctx->slice_size == (size_t)NGX_ERROR
+                || ctx->slice_size == 0) {
+            ctx->slice_size = DEFAULT_SLICE_SIZE; /* default size 10K */
+        }
     } else {
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                 "invalid url hash parameters");
@@ -102,7 +150,9 @@ static char *ngx_http_url_hash(ngx_conf_t *cf, ngx_command_t *cmd,
 
 static ngx_uint_t ngx_http_request_hash_index(ngx_http_request_t *r, 
         ngx_http_url_hash_ctx_t *ctx) {
-    int range_start = 0;
+    ngx_uint_t index = 0;
+    ngx_int_t range_id = 0;
+    ngx_int_t len = 0;
     u_char *url_range;
     int temp_len = 0;
 
@@ -110,28 +160,16 @@ static ngx_uint_t ngx_http_request_hash_index(ngx_http_request_t *r,
             || r->headers_in.range->value.len < 7
             || ngx_strncasecmp(r->headers_in.range->value.data, 
                 (u_char *)"bytes=", 6)) {
-        range_start = 0;
+        range_id = 0;
         temp_len = r->uri.len + 2;
     } else {
-        /* process Ranges */
-        int i;
-        char c;
-        for (i = 6; i <= r->headers_in.range->value.len; ++i) {
-            c = r->headers_in.range->value.data[i];
-            if (c == '-') {
-                break;
-            }
-
-            if (isspace(c)) {
-                continue;
-            }
-
-            if (isdigit(c)) {
-                range_start = range_start * 10 + c - 0x30;
-            }
+        /* process Range header */
+        range_id = ngx_http_url_hash_range_parse(r, &len);
+        if (range_id < 0) {
+            range_id = 0;
         }
-        range_start /= 10;
-        temp_len = r->uri.len + r->headers_in.range->value.len + 1;
+        range_id /= ctx->slice_size;
+        temp_len = r->uri.len + len + 1;
     }
 
     url_range = (u_char *)ngx_pcalloc(r->pool, temp_len);
@@ -140,9 +178,9 @@ static ngx_uint_t ngx_http_request_hash_index(ngx_http_request_t *r,
     }
     ngx_memcpy(url_range, r->uri.data, r->uri.len);
     ngx_snprintf(url_range + r->uri.len, temp_len - r->uri.len, 
-            "%d", range_start);
-
-    return ngx_crc32_short(url_range, ngx_strlen(url_range)) % ctx->backends->nelts;
+            "%d", range_id);
+    index = ngx_crc32_short(url_range, ngx_strlen(url_range)) % ctx->backends->nelts;
+    return index;
 }
 
 static ngx_int_t ngx_http_url_hash_variable(ngx_http_request_t *r, 
@@ -237,6 +275,7 @@ static char *ngx_http_url_hash_block(ngx_conf_t *cf, ngx_command_t *cmd,
     *cf = save;
 
     uh->backends = ctx.backends;
+    uh->slice_size = ctx.slice_size;
     ngx_destroy_pool(pool);
     return rv;
 }

@@ -10,6 +10,7 @@ Example Configuration
 =====================
 
     url_hash $urlhash {
+        slice_size  10M;
         backend     192.168.100.1;
         backend     192.168.100.2;
         backend     192.168.100.3:8080;
@@ -26,7 +27,10 @@ Diretives
 * default: --
 * context: http, server, location
 
-The only supported parameter is:
+The supported parameters are:
+
+slice_size
+    the slice size according to the range start 
 
 backend
     host and port in HTTP 302 redirect location

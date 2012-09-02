@@ -114,12 +114,14 @@ static ngx_int_t ngx_http_url_hash_chash_init(
                 vnode->index = i;
             }
         }
-
-        /* sort in ascending order of "point" */
-        qsort((void *)ctx->chash_continuum, ctx->chash_continuum->nelts, 
-            sizeof(vnode), 
-            (vnodecmp_pt)ngx_http_url_hash_vnode_cmp);
     }
+
+    /* sort in ascending order of "point" */
+    qsort((void *)ctx->chash_continuum->elts, 
+            ctx->chash_continuum->nelts, 
+            sizeof(chash_vnode), 
+            (vnodecmp_pt)ngx_http_url_hash_vnode_cmp);
+
     return 0;
 }
 
@@ -140,7 +142,7 @@ static ngx_uint_t ngx_http_url_hash_chash_find(ngx_http_url_hash_ctx_t *ctx,
         }
 
         midval = vnodes[midp].point;
-        midval1 = (midp == 0 ? 0 : vnodes[midval - 1].point);
+        midval1 = (midp == 0 ? 0 : vnodes[midp - 1].point);
         if (hash <= midval && hash > midval1) {
             return vnodes[midp].index;
         }

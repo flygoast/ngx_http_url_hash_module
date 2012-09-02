@@ -82,7 +82,8 @@ for (my $j = 0; $j < $times; ++$j) {
                     $temp[0] =~ m/Location: http:\/\/([^\/]*)\/(.*)/;
                     ++$statis{$1};
                 } else {
-                    print "ERROR: http:$httpcode, curlcode:" . $handler->strerror($ret), "\n";
+                    print "ERROR: http:$httpcode, curlcode:" . 
+                        $handler->strerror($ret), "\n";
                 }
     
                 delete $curl_handlers{$id};

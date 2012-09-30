@@ -6,9 +6,18 @@
 
 #define DEFAULT_SLICE_SIZE      (1024 * 1024 * 10)   /* 10M */
 
-#define STRATEGY_HASH        1   /* general hashing method */
-#define STRATEGY_WHASH       2   /* weighed hashing */
-#define STRATEGY_CHASH       3   /* consistent hashing */
+#define STRATEGY_HASH       1   /* general hashing method */
+#define STRATEGY_WHASH      2   /* weighed hashing */
+#define STRATEGY_CHASH      3   /* consistent hashing */
+
+#define DEFAULT_STRATEGY    STRATEGY_CHASH
+
+static ngx_conf_enum_t ngx_strategies[] = {
+    { ngx_string("hash"), STRATEGY_HASH },
+    { ngx_string("whash"), STRATEGY_WHASH },
+    { ngx_string("chash"), STRATEGY_CHASH },
+    { ngx_null_string, 0}
+};
 
 typedef struct {
     uint32_t        point;      /* point on circle */
@@ -162,16 +171,20 @@ static ngx_uint_t ngx_http_url_hash_chash_find(ngx_http_url_hash_ctx_t *ctx,
     return vnodes[0].index;
 }
 
-static ngx_int_t ngx_http_url_hash_parse_strategy(u_char *strategy_str) {
-    if (strcmp(strategy_str, "hash") == 0) {
-        return STRATEGY_HASH;
-    } else if (strcmp(strategy_str, "whash") == 0) {
-        return STRATEGY_WHASH;
-    } else if (strcmp(strategy_str, "chash") == 0) {
-        return STRATEGY_CHASH;
-    } else {
-        return STRATEGY_HASH; /* default: hash */
+static ngx_int_t ngx_http_url_hash_parse_strategy(ngx_str_t *value) {
+    ngx_conf_enum_t     *e = ngx_strategies;
+    ngx_uint_t          i;
+
+    for (i = 0; e[i].name.len != 0; ++i) {
+        if (e[i].name.len != value->len 
+            || ngx_strcasecmp(e[i].name.data, value->data) != 0) {
+            continue;
+        }
+
+        return e[i].value;
     }
+
+    return DEFAULT_STRATEGY;
 }
 
 static ngx_int_t ngx_http_url_hash_range_parse(ngx_http_request_t *r, 
@@ -314,7 +327,7 @@ static char *ngx_http_url_hash(ngx_conf_t *cf, ngx_command_t *cmd,
             return NGX_CONF_ERROR;
         }
 
-        ctx->strategy = ngx_http_url_hash_parse_strategy(value[1].data);
+        ctx->strategy = ngx_http_url_hash_parse_strategy(&value[1]);
     } else {
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
                 "invalid url_hash parameters");

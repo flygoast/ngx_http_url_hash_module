@@ -510,7 +510,7 @@ ngx_http_url_hash_get_location(ngx_http_request_t *r, ngx_str_t *loc)
     }
 
     host_len = si[index].host.len;
-    len = http_len + host_len + r->uri.len;
+    len = http_len + host_len + r->unparsed_uri.len;
     location = ngx_pcalloc(r->pool, len + 1);
     if (location == NULL) {
         return NGX_ERROR;
@@ -523,8 +523,8 @@ ngx_http_url_hash_get_location(ngx_http_request_t *r, ngx_str_t *loc)
     if (location[offset - 1] == '/') {
         --offset; /* uri partion has a '/', so eliminate it. */
     }
-    ngx_memcpy(location + offset, r->uri.data, r->uri.len);
-    offset += r->uri.len;
+    ngx_memcpy(location + offset, r->unparsed_uri.data, r->unparsed_uri.len);
+    offset += r->unparsed_uri.len;
 
     loc->len = len;
     loc->data = location;
